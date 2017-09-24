@@ -80,11 +80,9 @@ typename TSPSCQueue<T>::Node* TSPSCQueue<T>::GetNode()
 {
     // Try to get node from internal node cache
     Node* node = nullptr;
-    for (;;)
-    {
+    for (;;) {
         // check if m_first points cached node (already dequeued)
-        if (m_first != m_tailCopy)
-        {
+        if (m_first != m_tailCopy) {
             node = m_first;
             m_first = m_first->m_next;
             break;
@@ -92,8 +90,7 @@ typename TSPSCQueue<T>::Node* TSPSCQueue<T>::GetNode()
 
         // load with 'consume' (data-dependent) memory ordering
         m_tailCopy = m_tail.load(std::memory_order_consume);
-        if (m_first != m_tailCopy)
-        {
+        if (m_first != m_tailCopy) {
             node = m_first;
             m_first = m_first->m_next;
             break;
@@ -121,8 +118,7 @@ template<typename T>
 TSPSCQueue<T>::~TSPSCQueue()
 {
     auto cur = m_first;
-    do
-    {
+    do {
         auto next = cur->m_next.load(std::memory_order_relaxed);
         delete cur;
         cur = next;
@@ -134,13 +130,11 @@ template<typename T>
 void TSPSCQueue<T>::Enqueue(const T& data)
 {
     auto node = GetNode();
-    if (node != nullptr)
-    {
+    if (node != nullptr) {
         node->m_next = nullptr;
         node->m_data = data;
     }
-    else
-    {
+    else {
         node = new Node(data);
     }
 
@@ -154,13 +148,11 @@ template<typename T>
 void TSPSCQueue<T>::Enqueue(T&& data)
 {
     auto node = GetNode();
-    if (node != nullptr)
-    {
+    if (node != nullptr) {
         node->m_next = nullptr;
         node->m_data = std::move(data);
     }
-    else
-    {
+    else {
         node = new Node(data);
     }
 
@@ -176,8 +168,7 @@ bool TSPSCQueue<T>::Dequeue(T& data)
     // return 'false' if queue is empty
     auto tail = m_tail.load(std::memory_order_relaxed);
     auto next = tail->m_next.load(std::memory_order_consume);
-    if (next != nullptr)
-    {
+    if (next != nullptr) {
          data = std::move(next->m_data);
          m_tail.store(next, std::memory_order_release);
          return true;

@@ -116,8 +116,7 @@ void RunThreads()
 
 void SignalHandler(int signal)
 {
-    if (signal == SIGINT)
-    {
+    if (signal == SIGINT) {
         s_stopTesting.store(true, std::memory_order_relaxed);
     }
     
