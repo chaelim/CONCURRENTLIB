@@ -4,14 +4,15 @@
 *   Unbounded Single Producer Single Consumer queue test
 *
 *   NOTE:
-*      - On multi core machine, this test program best performed only use two cores.
-*           (500K operations/second)
-*      - To set CPU affinity you can use "start /b /affinity 3 SPSCQueue.exe" command.
+*      - On multi core machine, this test program best performed when using only two cores.
+*           (121M operations/second on Intel i7-4870HQ)
+*      - To set CPU affinity you can use "start /b /affinity 3 SPSCQueueTest.exe" command.
 *
 *   Written by CS Lim (10/04/2010)
 * 
-*   cl.exe /std:c++latest /Ox /EHsc /D NDEBUG /D _WIN32 SPSCQueueTest.cpp
-*   cl.exe /std:c++latest /Ox /EHsc /D DEBUG SPSCQueueTest.cpp
+*   Commandline Compile:
+*      Release build: cl.exe /std:c++latest /GS- /Zi /MT /O2 /Ox /EHsc /DNDEBUG /D _WIN32 SPSCQueueTest.cpp
+*      Debug build: cl.exe /std:c++latest /MTd /Od /EHsc /D_DEBUG SPSCQueueTest.cpp
 *
 **/
 
@@ -24,6 +25,7 @@
 #include <chrono>
 #include <csignal>
 #include <cstdio>
+#include <cstring>
 #include <assert.h>
 
 #if defined(_WIN32)
@@ -33,11 +35,11 @@
 
 using namespace std::chrono_literals;
 
-static std::atomic<bool> s_stopTesting = false;
-static std::atomic<int> s_runTestThreads = 0;
+static std::atomic<bool> s_stopTesting{false};
+static std::atomic<int> s_runTestThreads{0};
 static std::mutex g_mutex;
 static std::condition_variable g_cv;
-static bool g_ready = false;
+static volatile bool g_ready = false;
 
 static TSPSCQueue<unsigned> s_spscQueue;
 
@@ -56,7 +58,6 @@ void wait()
 //===========================================================================
 void RunThreads()
 {
-
     std::thread producer([&]() {
         // Wait for start
         std::atomic_fetch_add(&s_runTestThreads, 1);
@@ -68,7 +69,7 @@ void RunThreads()
             //Sleep(rand() % 10);
         }
 
-        printf("Producer Total Enqueue: %d\n", i);
+        printf("Producer Total Enqueue: %u\n", i);
     });
 
     std::thread consumer([&]() {
@@ -87,7 +88,7 @@ void RunThreads()
             //Sleep(rand() % 1000);
         }
         
-        printf("Consumer Total Dequeue: %d\n", i);
+        printf("Consumer Total Dequeue: %u\n", i);
     });
 
 #if defined(_WIN32)
