@@ -5,7 +5,6 @@
 *
 *   NOTE:
 *      - On multi core machine, this test program best performed when using only two cores.
-*           (121M operations/second on Intel i7-4870HQ)
 *      - To set CPU affinity you can use "start /b /affinity 3 SPSCQueueTest.exe" command.
 *
 *   Written by CS Lim (10/04/2010)
@@ -25,6 +24,8 @@
 #include <chrono>
 #include <csignal>
 #include <cstdio>
+#include <cstdint>
+#include <cinttypes>
 #include <cstring>
 #include <assert.h>
 
@@ -58,27 +59,32 @@ void wait()
 //===========================================================================
 void RunThreads()
 {
-    std::thread producer([&]() {
+    uint64_t totalEnqueues = 0;
+    uint64_t totalDequeues = 0;
+
+    std::thread producer([&totalEnqueues]() {
         // Wait for start
         std::atomic_fetch_add(&s_runTestThreads, 1);
         wait();
 
         unsigned i = 0;
-        while (!s_stopTesting) {
+        while (!s_stopTesting.load(std::memory_order_relaxed))
+        {
             s_spscQueue.Enqueue(i++);
             //Sleep(rand() % 10);
         }
 
-        printf("Producer Total Enqueue: %u\n", i);
+        totalEnqueues = i;
     });
 
-    std::thread consumer([&]() {
+    std::thread consumer([&totalDequeues]() {
         // Wait for start
         std::atomic_fetch_add(&s_runTestThreads, 1);
         wait();
 
         unsigned i = 0;
-        while (!s_stopTesting) {
+        while (!s_stopTesting.load(std::memory_order_relaxed))
+        {
             unsigned j;
             if (!s_spscQueue.Dequeue(j))
                 continue;
@@ -88,7 +94,7 @@ void RunThreads()
             //Sleep(rand() % 1000);
         }
         
-        printf("Consumer Total Dequeue: %u\n", i);
+        totalDequeues = i;
     });
 
 #if defined(_WIN32)
@@ -112,13 +118,16 @@ void RunThreads()
 
     producer.join();
     consumer.join();
+
+    printf("Producer Total Enqueue: %" PRIu64 "\n", totalEnqueues);
+    printf("Consumer Total Dequeue: %" PRIu64 "\n", totalDequeues);
+    printf("Total operations (Enqueue + Dequeue) / sec = %" PRIu64 "\n", (totalEnqueues + totalDequeues) / 20);
 }
 
 void SignalHandler(int signal)
 {
-    if (signal == SIGINT) {
+    if (signal == SIGINT)
         s_stopTesting.store(true, std::memory_order_relaxed);
-    }
     
     exit(signal);
 }
